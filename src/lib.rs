@@ -11,7 +11,7 @@ pub async fn run() {
     );
 
     let event_loop = winit::event_loop::EventLoop::new();
-    let window = std::rc::Rc::new(
+    let window = std::sync::Arc::new(
         winit::window::WindowBuilder::new()
             .with_title("aaaaaaaa")
             .with_decorations(true)

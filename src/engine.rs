@@ -1,23 +1,25 @@
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 pub struct Engine {
-    window: Rc<winit::window::Window>,
+    window: Arc<winit::window::Window>,
     surface: wgpu::Surface,
-    device: wgpu::Device,
+    device: Arc<wgpu::Device>,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     scene: hecs::World,
     render_pipelines: HashMap<String, Rc<wgpu::RenderPipeline>>,
+    bind_groups: HashMap<String, Rc<wgpu::BindGroup>>,
     egui: (
         egui_wgpu_backend::RenderPass,
         egui_winit::State,
         egui::Context,
     ),
+    input: (bool, bool, bool, bool),
 }
 
 impl Engine {
-    pub async fn new(window: Rc<winit::window::Window>) -> Self {
+    pub async fn new(window: Arc<winit::window::Window>) -> Self {
         // Surface, device, queue and config
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window.as_ref()) };
@@ -42,6 +44,8 @@ impl Engine {
             .await
             .unwrap();
 
+        let device = Arc::new(device);
+
         let surface_format = surface.get_supported_formats(&adapter)[0];
 
         let config = wgpu::SurfaceConfiguration {
@@ -54,15 +58,19 @@ impl Engine {
 
         surface.configure(&device, &config);
 
-        // ECS
-        let mut scene = hecs::World::new();
+        // Camera
+        let (camera, camera_bind_group, camera_bind_group_layout) = crate::component::Camera::new(
+            crate::component::CameraType::Perspective,
+            window.clone(),
+            device.clone(),
+        );
 
-        // Pipelines
+        // Pipeline
         let render_pipeline = Rc::new({
             let render_pipeline_layout =
                 device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout Descriptor"),
-                    bind_group_layouts: &[],
+                    bind_group_layouts: &[&camera_bind_group_layout],
                     push_constant_ranges: &[],
                 });
             let shader = wgpu::ShaderModuleDescriptor {
@@ -113,11 +121,14 @@ impl Engine {
             })
         });
 
+        // Add pipeline to hashmap
         let mut render_pipelines = HashMap::new();
         render_pipelines.insert("Default".to_owned(), render_pipeline);
 
-        // Vertex, index buffer
+        let mut bind_groups = HashMap::new();
+        bind_groups.insert("Camera".to_owned(), Rc::new(camera_bind_group));
 
+        // Vertex, index buffer
         let vertex = vec![
             crate::vertex_type::DefaultVertex {
                 position: [0.0, 1.0, 1.0],
@@ -132,32 +143,43 @@ impl Engine {
 
         let indices = vec![0u16, 2, 1];
 
-        let vertex_buffer = std::sync::Arc::new(wgpu::util::DeviceExt::create_buffer_init(
-            &device,
+        let vertex_buffer = wgpu::util::DeviceExt::create_buffer_init(
+            device.as_ref(),
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer Init"),
                 contents: bytemuck::cast_slice(&vertex),
                 usage: wgpu::BufferUsages::VERTEX,
             },
-        ));
+        );
 
-        let index_buffer = std::sync::Arc::new(wgpu::util::DeviceExt::create_buffer_init(
-            &device,
+        let index_buffer = wgpu::util::DeviceExt::create_buffer_init(
+            device.as_ref(),
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer Init"),
                 contents: bytemuck::cast_slice(&indices),
                 usage: wgpu::BufferUsages::INDEX,
             },
-        ));
+        );
 
+        // ECS
+        let mut scene = hecs::World::new();
+
+        // Spawn triangle
         scene.spawn((
             crate::component::transform::Transform::default(),
             crate::component::render::Render {
-                vertex_buffer: vertex_buffer.clone(),
-                index_buffer: index_buffer.clone(),
+                vertex_buffer,
+                index_buffer,
                 pipeline: "Default",
                 index_count: 3,
             },
+        ));
+
+        // Spawn camera
+        scene.spawn((
+            crate::component::Transform::default()
+                .with_position(nalgebra_glm::vec3(0.0, 0.0, -2.0)),
+            camera,
         ));
 
         Self {
@@ -167,12 +189,14 @@ impl Engine {
             render_pipelines,
             egui: (
                 egui_wgpu_backend::RenderPass::new(&device, surface_format, 1),
-                egui_winit::State::new(4098, window.as_ref()),
+                egui_winit::State::new(2048, window.as_ref()),
                 egui::Context::default(),
             ),
             device,
             queue,
             window,
+            input: (false, false, false, false),
+            bind_groups,
         }
     }
 
@@ -213,7 +237,7 @@ impl Engine {
                 render.draw(
                     &mut render_pass,
                     &self.render_pipelines[render.pipeline],
-                    None,
+                    Some(vec![(0, &self.bind_groups["Camera"])]),
                 )
             });
 
@@ -264,10 +288,70 @@ impl Engine {
         Ok(())
     }
 
-    pub fn update(&mut self) {}
+    pub fn update(&mut self) {
+        // Provisional camera controller
+        self.scene
+            .query_mut::<(
+                &mut crate::component::Transform,
+                &mut crate::component::Camera,
+            )>()
+            .into_iter()
+            .for_each(|(_, (transform, camera))| {
+                if self.input.0 {
+                    transform.position.x += 0.01;
+                }
+                if self.input.1 {
+                    transform.position.x -= 0.01;
+                }
+                if self.input.2 {
+                    transform.position.z += 0.01;
+                }
+                if self.input.3 {
+                    transform.position.z -= 0.01;
+                }
 
-    pub fn input(&mut self, _event: &winit::event::WindowEvent) -> bool {
-        false
+                camera.update(&transform, &self.queue);
+            });
+    }
+
+    pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
+        fn is_pressed(s: &winit::event::ElementState) -> bool {
+            match s {
+                winit::event::ElementState::Pressed => true,
+                _ => false,
+            }
+        }
+
+        match event {
+            winit::event::WindowEvent::KeyboardInput {
+                input:
+                    winit::event::KeyboardInput {
+                        state,
+                        virtual_keycode: Some(key),
+                        ..
+                    },
+                ..
+            } => match key {
+                winit::event::VirtualKeyCode::A => {
+                    self.input.0 = is_pressed(state);
+                    true
+                }
+                winit::event::VirtualKeyCode::D => {
+                    self.input.1 = is_pressed(state);
+                    true
+                }
+                winit::event::VirtualKeyCode::W => {
+                    self.input.2 = is_pressed(state);
+                    true
+                }
+                winit::event::VirtualKeyCode::S => {
+                    self.input.3 = is_pressed(state);
+                    true
+                }
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -275,7 +359,7 @@ impl Engine {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
-            println!("new window size: {:?}", self.window.inner_size());
+            println!("New window size: {:?}", self.window.inner_size());
         }
     }
 }

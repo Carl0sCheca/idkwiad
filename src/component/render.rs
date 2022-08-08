@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub struct Render<'a> {
-    pub vertex_buffer: std::sync::Arc<wgpu::Buffer>,
-    pub index_buffer: std::sync::Arc<wgpu::Buffer>,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
     pub pipeline: &'a str,
     pub index_count: u32,
 }
