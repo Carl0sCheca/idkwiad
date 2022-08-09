@@ -4,4 +4,6 @@ pub mod render;
 pub mod transform;
 
 pub use camera::{Camera, CameraType};
+pub use render::Render;
 pub use transform::Transform;
+pub use transform::TransformBuild;

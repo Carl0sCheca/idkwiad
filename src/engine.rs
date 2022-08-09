@@ -15,7 +15,9 @@ pub struct Engine {
         egui_winit::State,
         egui::Context,
     ),
-    input: (bool, bool, bool, bool),
+    input: (bool, bool, bool, bool, bool, bool, bool, bool),
+    pub mouse_delta: (f32, f32),
+    pitch_yaw: (f32, f32),
 }
 
 impl Engine {
@@ -177,8 +179,10 @@ impl Engine {
 
         // Spawn camera
         scene.spawn((
-            crate::component::Transform::default()
-                .with_position(nalgebra_glm::vec3(0.0, 0.0, -2.0)),
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(0.0, 0.0, -2.0))
+                .with_rotation(nalgebra_glm::zero())
+                .build(),
             camera,
         ));
 
@@ -195,8 +199,10 @@ impl Engine {
             device,
             queue,
             window,
-            input: (false, false, false, false),
+            input: (false, false, false, false, false, false, false, false),
             bind_groups,
+            mouse_delta: (0.0, 0.0),
+            pitch_yaw: (0.0, 0.0),
         }
     }
 
@@ -298,17 +304,41 @@ impl Engine {
             .into_iter()
             .for_each(|(_, (transform, camera))| {
                 if self.input.0 {
-                    transform.position.x += 0.01;
+                    transform.position += transform.right() * 0.01;
                 }
                 if self.input.1 {
-                    transform.position.x -= 0.01;
+                    transform.position -= transform.right() * 0.01;
                 }
                 if self.input.2 {
-                    transform.position.z += 0.01;
+                    transform.position += transform.forward() * 0.01;
                 }
                 if self.input.3 {
-                    transform.position.z -= 0.01;
+                    transform.position -= transform.forward() * 0.01;
                 }
+                if self.input.4 {}
+                if self.input.5 {}
+                if self.input.6 {
+                    // transform.position -= transform.up() * 0.01;
+                    transform.position.y -= 0.01;
+                }
+                if self.input.7 {
+                    // transform.position += transform.up() * 0.01;
+                    transform.position.y += 0.01;
+                }
+
+                transform.rotation.x += self.mouse_delta.1 * 0.5;
+                transform.rotation.y -= self.mouse_delta.0 * 0.5;
+
+                dbg!(transform.rotation);
+
+                self.window
+                    .set_cursor_position(winit::dpi::LogicalPosition {
+                        x: self.window.inner_position().unwrap().x as f32 / 2.0,
+                        y: self.window.inner_position().unwrap().y as f32 / 2.0,
+                    })
+                    .unwrap();
+
+                self.mouse_delta = (0.0, 0.0);
 
                 camera.update(&transform, &self.queue);
             });
@@ -346,6 +376,22 @@ impl Engine {
                 }
                 winit::event::VirtualKeyCode::S => {
                     self.input.3 = is_pressed(state);
+                    true
+                }
+                winit::event::VirtualKeyCode::Q => {
+                    self.input.4 = is_pressed(state);
+                    true
+                }
+                winit::event::VirtualKeyCode::E => {
+                    self.input.5 = is_pressed(state);
+                    true
+                }
+                winit::event::VirtualKeyCode::LControl => {
+                    self.input.6 = is_pressed(state);
+                    true
+                }
+                winit::event::VirtualKeyCode::Space => {
+                    self.input.7 = is_pressed(state);
                     true
                 }
                 _ => false,

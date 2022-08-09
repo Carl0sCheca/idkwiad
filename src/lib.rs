@@ -16,7 +16,7 @@ pub async fn run() {
             .with_title("aaaaaaaa")
             .with_decorations(true)
             .with_inner_size(winit::dpi::PhysicalSize::new(1280, 720))
-            .with_position(winit::dpi::PhysicalPosition::new(0.0, 0.0))
+            // .with_position(winit::dpi::PhysicalPosition::new(0.0, 0.0))
             .build(&event_loop)
             .unwrap(),
     );
@@ -53,6 +53,10 @@ pub async fn run() {
                 _ => {}
             }
         }
+        winit::event::Event::DeviceEvent {
+            event: winit::event::DeviceEvent::MouseMotion { delta },
+            ..
+        } => engine.mouse_delta = (delta.0 as f32, delta.1 as f32),
         winit::event::Event::RedrawRequested(window_id) if window_id == window.id() => {
             engine.update();
 
