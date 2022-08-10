@@ -2,7 +2,6 @@
 pub struct Camera {
     pub camera_type: CameraType,
     pub projection: nalgebra_glm::Mat4,
-    pub up_dir: nalgebra_glm::Vec3,
     pub buffer: wgpu::Buffer,
     pub uniform: CameraUniform,
     pub device: std::sync::Arc<wgpu::Device>,
@@ -78,7 +77,6 @@ impl Camera {
             uniform,
             device,
             window,
-            up_dir: nalgebra_glm::Vec3::y(),
         };
 
         camera.projection = camera.build_projection();
@@ -87,8 +85,6 @@ impl Camera {
     }
 
     pub fn update(&mut self, transform: &super::Transform, queue: &wgpu::Queue) {
-        self.up_dir = transform.up();
-
         self.uniform
             .update(self.build_projection(), self.build_view(transform));
 
@@ -124,7 +120,7 @@ impl Camera {
         nalgebra_glm::Mat4::look_at_rh(
             &transform.position.into(),
             &(transform.position + transform.forward()).into(),
-            &self.up_dir,
+            &transform.up(),
         )
     }
 }

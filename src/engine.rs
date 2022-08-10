@@ -17,7 +17,7 @@ pub struct Engine {
     ),
     input: (bool, bool, bool, bool, bool, bool, bool, bool),
     pub mouse_delta: (f32, f32),
-    pitch_yaw: (f32, f32),
+    camera: hecs::Entity,
 }
 
 impl Engine {
@@ -178,7 +178,7 @@ impl Engine {
         ));
 
         // Spawn camera
-        scene.spawn((
+        let camera = scene.spawn((
             crate::component::TransformBuild::new()
                 .with_position(nalgebra_glm::vec3(0.0, 0.0, -2.0))
                 .with_rotation(nalgebra_glm::zero())
@@ -202,7 +202,7 @@ impl Engine {
             input: (false, false, false, false, false, false, false, false),
             bind_groups,
             mouse_delta: (0.0, 0.0),
-            pitch_yaw: (0.0, 0.0),
+            camera,
         }
     }
 
@@ -255,11 +255,19 @@ impl Engine {
             egui::Area::new("debug_info")
                 .fixed_pos(egui::pos2(0.0, 0.0))
                 .show(ctx, |ui| {
+                    let transform = self
+                        .scene
+                        .query_one_mut::<&crate::component::Transform>(self.camera)
+                        .unwrap();
+
                     ui.label(
-                        egui::RichText::new(format!("test"))
-                            .background_color(egui::Color32::BLACK)
-                            .color(egui::Color32::WHITE)
-                            .size(20.0),
+                        egui::RichText::new(format!(
+                            "position: {:.4?}\nrotation: {:.4?}",
+                            transform.position, transform.rotation
+                        ))
+                        .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
+                        .color(egui::Color32::WHITE)
+                        .size(20.0),
                     );
                 });
         });
@@ -315,27 +323,24 @@ impl Engine {
                 if self.input.3 {
                     transform.position -= transform.forward() * 0.01;
                 }
-                if self.input.4 {}
-                if self.input.5 {}
+                if self.input.4 {
+                    transform.add_rotation_z(-0.5);
+                }
+                if self.input.5 {
+                    transform.add_rotation_z(0.5);
+                }
                 if self.input.6 {
-                    // transform.position -= transform.up() * 0.01;
                     transform.position.y -= 0.01;
                 }
                 if self.input.7 {
-                    // transform.position += transform.up() * 0.01;
                     transform.position.y += 0.01;
                 }
 
-                transform.rotation.x += self.mouse_delta.1 * 0.5;
-                transform.rotation.y -= self.mouse_delta.0 * 0.5;
-
-                dbg!(transform.rotation);
+                transform.add_rotation_y(self.mouse_delta.0 * 0.5);
+                transform.add_rotation_x(-self.mouse_delta.1 * 0.5);
 
                 self.window
-                    .set_cursor_position(winit::dpi::LogicalPosition {
-                        x: self.window.inner_position().unwrap().x as f32 / 2.0,
-                        y: self.window.inner_position().unwrap().y as f32 / 2.0,
-                    })
+                    .set_cursor_position(winit::dpi::PhysicalPosition { x: 640.0, y: 360.0 })
                     .unwrap();
 
                 self.mouse_delta = (0.0, 0.0);

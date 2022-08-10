@@ -3,18 +3,34 @@ pub struct Transform {
     pub position: nalgebra_glm::Vec3,
     pub rotation: nalgebra_glm::Vec3,
     pub size: nalgebra_glm::Vec3,
+    q_rotation: nalgebra_glm::Quat,
 }
 
 impl Default for Transform {
     fn default() -> Self {
+        let rot_x = nalgebra_glm::quat_rotate(
+            &nalgebra_glm::Quat::identity(),
+            f32::to_radians(0.0),
+            &nalgebra_glm::Vec3::x(),
+        );
+        let rot_y = nalgebra_glm::quat_rotate(
+            &nalgebra_glm::Quat::identity(),
+            f32::to_radians(0.0),
+            &nalgebra_glm::Vec3::y(),
+        );
+        let rot_z = nalgebra_glm::quat_rotate(
+            &nalgebra_glm::Quat::identity(),
+            f32::to_radians(0.0),
+            &nalgebra_glm::Vec3::z(),
+        );
+
+        let rotation = (rot_x * rot_y * rot_z).normalize();
+
         Self {
             position: nalgebra_glm::zero(),
-            rotation: nalgebra_glm::row(
-                &nalgebra_glm::quat_to_mat4(&nalgebra_glm::Quat::identity()),
-                2,
-            )
-            .xyz(),
+            rotation: nalgebra_glm::quat_euler_angles(&rotation),
             size: nalgebra_glm::vec3(1.0, 1.0, 1.0),
+            q_rotation: rotation,
         }
     }
 }
@@ -59,29 +75,56 @@ impl Transform {
             f32::to_radians(self.rotation.z),
             &nalgebra_glm::Vec3::z(),
         );
-        let rotation = rot_y * rot_z * rot_x;
 
-        rotation.normalize()
+        (rot_x * rot_y * rot_z).normalize()
     }
 
     pub fn forward(&self) -> nalgebra_glm::Vec3 {
-        let rotation = self.q_rotation();
-
-        nalgebra_glm::quat_rotate_vec3(&rotation, &nalgebra_glm::Vec3::z()).normalize()
-        // nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&rotation), 2).xyz()
+        nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&self.q_rotation), 2).xyz()
     }
 
     pub fn up(&self) -> nalgebra_glm::Vec3 {
-        let rotation = self.q_rotation();
-
-        nalgebra_glm::quat_rotate_vec3(&rotation, &nalgebra_glm::Vec3::y()).normalize()
-        // nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&rotation), 1).xyz()
+        nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&self.q_rotation), 1).xyz()
     }
 
     pub fn right(&self) -> nalgebra_glm::Vec3 {
-        let rotation = self.q_rotation();
+        nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&self.q_rotation), 0).xyz()
+    }
 
-        nalgebra_glm::quat_rotate_vec3(&rotation, &nalgebra_glm::Vec3::x()).normalize()
-        // nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&rotation), 0).xyz()
+    pub fn add_rotation_x(&mut self, angle: f32) {
+        let rot = nalgebra_glm::quat_rotate(
+            &nalgebra_glm::Quat::identity(),
+            angle.to_radians(),
+            &self.right(),
+        );
+
+        self.q_rotation = (self.q_rotation * rot).normalize();
+
+        self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+    }
+
+    pub fn add_rotation_y(&mut self, angle: f32) {
+        let rot = nalgebra_glm::quat_rotate(
+            &nalgebra_glm::Quat::identity(),
+            angle.to_radians(),
+            &nalgebra_glm::Vec3::y(),
+            // &self.up(), // weird rotation doing circles with mouse
+        );
+
+        self.q_rotation = (self.q_rotation * rot).normalize();
+
+        self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+    }
+
+    pub fn add_rotation_z(&mut self, angle: f32) {
+        let rot = nalgebra_glm::quat_rotate(
+            &nalgebra_glm::Quat::identity(),
+            angle.to_radians(),
+            &self.forward(),
+        );
+
+        self.q_rotation = (self.q_rotation * rot).normalize();
+
+        self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
     }
 }
