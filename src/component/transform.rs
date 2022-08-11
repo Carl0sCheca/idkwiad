@@ -1,9 +1,18 @@
+#![allow(dead_code)]
+
 #[derive(Debug)]
 pub struct Transform {
     pub position: nalgebra_glm::Vec3,
     pub rotation: nalgebra_glm::Vec3,
     pub size: nalgebra_glm::Vec3,
     q_rotation: nalgebra_glm::Quat,
+    pub buffer: Option<std::sync::Arc<wgpu::Buffer>>,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TransformRaw {
+    pub transform: [[f32; 4]; 4],
 }
 
 impl Default for Transform {
@@ -31,6 +40,7 @@ impl Default for Transform {
             rotation: nalgebra_glm::quat_euler_angles(&rotation),
             size: nalgebra_glm::vec3(1.0, 1.0, 1.0),
             q_rotation: rotation,
+            buffer: None,
         }
     }
 }
@@ -71,13 +81,38 @@ impl TransformBuild {
         self
     }
 
+    pub fn with_buffer(mut self, device: &wgpu::Device) -> Self {
+        self.0.buffer = Some(std::sync::Arc::new(
+            wgpu::util::DeviceExt::create_buffer_init(
+                device,
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Transform Buffer"),
+                    contents: bytemuck::cast_slice(&[self.0.to_raw()]),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                },
+            ),
+        ));
+
+        self
+    }
+
     pub fn build(self) -> Transform {
         self.0
     }
 }
 
-#[allow(dead_code)]
 impl Transform {
+    pub fn to_raw(&self) -> TransformRaw {
+        let mut transform =
+            nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &self.position);
+
+        transform = transform * nalgebra_glm::quat_to_mat4(&self.q_rotation);
+
+        TransformRaw {
+            transform: transform.into(),
+        }
+    }
+
     pub fn forward(&self) -> nalgebra_glm::Vec3 {
         nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&self.q_rotation), 2).xyz()
     }

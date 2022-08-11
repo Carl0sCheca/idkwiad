@@ -88,16 +88,46 @@ impl Engine {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "v_main",
-                    buffers: &[wgpu::VertexBufferLayout {
-                        array_stride: std::mem::size_of::<crate::vertex_type::DefaultVertex>()
-                            as u64,
-                        step_mode: wgpu::VertexStepMode::Vertex,
-                        attributes: &[wgpu::VertexAttribute {
-                            format: wgpu::VertexFormat::Float32x3,
-                            offset: 0,
-                            shader_location: 0,
-                        }],
-                    }],
+                    buffers: &[
+                        wgpu::VertexBufferLayout {
+                            array_stride: std::mem::size_of::<crate::vertex_type::DefaultVertex>()
+                                as u64,
+                            step_mode: wgpu::VertexStepMode::Vertex,
+                            attributes: &[wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x3,
+                                offset: 0,
+                                shader_location: 0,
+                            }],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: std::mem::size_of::<
+                                crate::component::transform::TransformRaw,
+                            >() as wgpu::BufferAddress,
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &[
+                                wgpu::VertexAttribute {
+                                    offset: 0,
+                                    shader_location: 5,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                                wgpu::VertexAttribute {
+                                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                                    shader_location: 6,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                                wgpu::VertexAttribute {
+                                    offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                                    shader_location: 7,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                                wgpu::VertexAttribute {
+                                    offset: std::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                                    shader_location: 8,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                            ],
+                        },
+                    ],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -130,51 +160,92 @@ impl Engine {
         let mut bind_groups = HashMap::new();
         bind_groups.insert("Camera".to_owned(), Rc::new(camera_bind_group));
 
-        // Vertex, index buffer
-        let vertex = vec![
-            crate::vertex_type::DefaultVertex {
-                position: [0.0, 1.0, 1.0],
-            },
-            crate::vertex_type::DefaultVertex {
-                position: [1.0, -1.0, 1.0],
-            },
-            crate::vertex_type::DefaultVertex {
-                position: [-1.0, -1.0, 1.0],
-            },
-        ];
-
-        let indices = vec![0u16, 2, 1];
-
-        let vertex_buffer = wgpu::util::DeviceExt::create_buffer_init(
-            device.as_ref(),
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer Init"),
-                contents: bytemuck::cast_slice(&vertex),
-                usage: wgpu::BufferUsages::VERTEX,
-            },
-        );
-
-        let index_buffer = wgpu::util::DeviceExt::create_buffer_init(
-            device.as_ref(),
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer Init"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsages::INDEX,
-            },
-        );
-
         // ECS
         let mut scene = hecs::World::new();
 
         // Spawn triangle
+        let triangle_transform = crate::component::TransformBuild::new()
+            .with_position(nalgebra_glm::vec3(0.0, 0.0, 0.0))
+            .with_buffer(device.as_ref())
+            .build();
+
         scene.spawn((
-            crate::component::transform::Transform::default(),
-            crate::component::render::Render {
-                vertex_buffer,
-                index_buffer,
-                pipeline: "Default",
-                index_count: 3,
-            },
+            crate::component::render::Render::new(
+                device.as_ref(),
+                (
+                    vec![
+                        crate::vertex_type::DefaultVertex {
+                            position: [0.0, 1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [1.0, -1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [-1.0, -1.0, 0.0],
+                        },
+                    ],
+                    vec![0u16, 2, 1],
+                ),
+                "Default".to_string(),
+                triangle_transform.buffer.clone(),
+            ),
+            triangle_transform,
+        ));
+
+        let triangle_transform = crate::component::TransformBuild::new()
+            .with_position(nalgebra_glm::vec3(3.0, 0.0, 0.0))
+            .with_buffer(device.as_ref())
+            .build();
+
+        scene.spawn((
+            crate::component::render::Render::new(
+                device.as_ref(),
+                (
+                    vec![
+                        crate::vertex_type::DefaultVertex {
+                            position: [0.0, 1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [1.0, -1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [-1.0, -1.0, 0.0],
+                        },
+                    ],
+                    vec![0u16, 2, 1],
+                ),
+                "Default".to_string(),
+                triangle_transform.buffer.clone(),
+            ),
+            triangle_transform,
+        ));
+
+        let triangle_transform = crate::component::TransformBuild::new()
+            .with_position(nalgebra_glm::vec3(-3.0, 0.0, 0.0))
+            .with_buffer(device.as_ref())
+            .build();
+
+        scene.spawn((
+            crate::component::render::Render::new(
+                device.as_ref(),
+                (
+                    vec![
+                        crate::vertex_type::DefaultVertex {
+                            position: [0.0, 1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [1.0, -1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [-1.0, -1.0, 0.0],
+                        },
+                    ],
+                    vec![0u16, 2, 1],
+                ),
+                "Default".to_string(),
+                triangle_transform.buffer.clone(),
+            ),
+            triangle_transform,
         ));
 
         // Spawn camera
@@ -241,7 +312,7 @@ impl Engine {
             .for_each(|(_id, render)| {
                 render.draw(
                     &mut render_pass,
-                    &self.render_pipelines[render.pipeline],
+                    &self.render_pipelines[render.pipeline.as_str()],
                     Some(vec![(0, &self.bind_groups["Camera"])]),
                 )
             });
@@ -347,6 +418,29 @@ impl Engine {
                 self.mouse_delta = (0.0, 0.0);
 
                 camera.update(&transform, &self.queue);
+            });
+
+        self.scene
+            .query_mut::<(
+                &mut crate::component::Transform,
+                &mut crate::component::Render,
+            )>()
+            .into_iter()
+            .enumerate()
+            .for_each(|(i, (_, (transform, _)))| {
+                if i == 0 {
+                    transform.add_rotation_global_y(0.5);
+                } else if i == 1 {
+                    transform.add_rotation_global_y(-0.5);
+                } else if i == 2 {
+                    transform.add_rotation_global_x(0.5);
+                }
+
+                self.queue.write_buffer(
+                    transform.buffer.as_ref().unwrap(),
+                    0,
+                    bytemuck::cast_slice(&[transform.to_raw()]),
+                )
             });
     }
 
