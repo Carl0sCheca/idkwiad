@@ -324,10 +324,10 @@ impl Engine {
                     transform.position -= transform.forward() * 0.01;
                 }
                 if self.input.4 {
-                    transform.add_rotation_z(-0.5);
+                    transform.add_rotation_z(-0.1);
                 }
                 if self.input.5 {
-                    transform.add_rotation_z(0.5);
+                    transform.add_rotation_z(0.1);
                 }
                 if self.input.6 {
                     transform.position.y -= 0.01;
@@ -336,8 +336,10 @@ impl Engine {
                     transform.position.y += 0.01;
                 }
 
-                transform.add_rotation_y(self.mouse_delta.0 * 0.5);
                 transform.add_rotation_x(-self.mouse_delta.1 * 0.5);
+                // transform.add_rotation_y(self.mouse_delta.0 * 0.5);
+                transform
+                    .add_rotation_global_y(self.mouse_delta.0 * 0.5 * transform.up().y.signum());
 
                 self.window
                     .set_cursor_position(winit::dpi::PhysicalPosition { x: 640.0, y: 360.0 })
