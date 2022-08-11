@@ -66,6 +66,7 @@ impl TransformBuild {
 
         let rotation = (rot_x * rot_y * rot_z).normalize();
 
+        self.0.q_rotation = rotation;
         self.0.rotation = nalgebra_glm::quat_euler_angles(&rotation);
         self
     }

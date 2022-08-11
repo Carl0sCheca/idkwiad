@@ -180,8 +180,7 @@ impl Engine {
         // Spawn camera
         let camera = scene.spawn((
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(0.0, 0.0, -2.0))
-                .with_rotation(nalgebra_glm::zero())
+                .with_position(nalgebra_glm::vec3(0.0, 0.0, -6.0))
                 .build(),
             camera,
         ));
