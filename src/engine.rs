@@ -176,6 +176,7 @@ impl Engine {
         ));
 
         scene.spawn((
+            triangle_transform_1.clone(),
             crate::component::render::Render::new(
                 device.as_ref(),
                 (
@@ -195,18 +196,17 @@ impl Engine {
                 "Default".to_string(),
                 triangle_transform_1.clone().lock().unwrap().buffer.clone(),
             ),
-            triangle_transform_1.clone(),
         ));
 
         let triangle_transform_2 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(6.0, 0.0, 0.0))
+                .with_position(nalgebra_glm::vec3(3.0, 0.0, 0.0))
                 .with_buffer(device.as_ref())
-                .with_parent(triangle_transform_1.clone())
                 .build(),
         ));
 
         scene.spawn((
+            triangle_transform_2.clone(),
             crate::component::render::Render::new(
                 device.as_ref(),
                 (
@@ -226,18 +226,17 @@ impl Engine {
                 "Default".to_string(),
                 triangle_transform_2.clone().lock().unwrap().buffer.clone(),
             ),
-            triangle_transform_2.clone(),
         ));
 
         let triangle_transform_3 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(3.0, 0.0, 0.0))
+                .with_position(nalgebra_glm::vec3(-3.0, 0.0, 0.0))
                 .with_buffer(device.as_ref())
-                .with_parent(triangle_transform_2.clone())
                 .build(),
         ));
 
         scene.spawn((
+            triangle_transform_3.clone(),
             crate::component::render::Render::new(
                 device.as_ref(),
                 (
@@ -257,69 +256,6 @@ impl Engine {
                 "Default".to_string(),
                 triangle_transform_3.clone().lock().unwrap().buffer.clone(),
             ),
-            triangle_transform_3.clone(),
-        ));
-
-        let triangle_transform_4 = Arc::new(Mutex::new(
-            crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(-3.0, 0.0, 0.0))
-                .with_buffer(device.as_ref())
-                .with_parent(triangle_transform_1.clone())
-                .build(),
-        ));
-
-        scene.spawn((
-            crate::component::render::Render::new(
-                device.as_ref(),
-                (
-                    vec![
-                        crate::vertex_type::DefaultVertex {
-                            position: [0.0, 1.0, 0.0],
-                        },
-                        crate::vertex_type::DefaultVertex {
-                            position: [1.0, -1.0, 0.0],
-                        },
-                        crate::vertex_type::DefaultVertex {
-                            position: [-1.0, -1.0, 0.0],
-                        },
-                    ],
-                    vec![0u16, 2, 1],
-                ),
-                "Default".to_string(),
-                triangle_transform_4.clone().lock().unwrap().buffer.clone(),
-            ),
-            triangle_transform_4.clone(),
-        ));
-
-        let triangle_transform_5 = Arc::new(Mutex::new(
-            crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(0.0, -2.0, 0.0))
-                .with_buffer(device.as_ref())
-                .with_parent(triangle_transform_4.clone())
-                .build(),
-        ));
-
-        scene.spawn((
-            crate::component::render::Render::new(
-                device.as_ref(),
-                (
-                    vec![
-                        crate::vertex_type::DefaultVertex {
-                            position: [0.0, 1.0, 0.0],
-                        },
-                        crate::vertex_type::DefaultVertex {
-                            position: [1.0, -1.0, 0.0],
-                        },
-                        crate::vertex_type::DefaultVertex {
-                            position: [-1.0, -1.0, 0.0],
-                        },
-                    ],
-                    vec![0u16, 2, 1],
-                ),
-                "Default".to_string(),
-                triangle_transform_5.clone().lock().unwrap().buffer.clone(),
-            ),
-            triangle_transform_5.clone(),
         ));
 
         // Spawn camera
@@ -327,6 +263,7 @@ impl Engine {
             Arc::new(Mutex::new(
                 crate::component::TransformBuild::new()
                     .with_position(nalgebra_glm::vec3(0.0, 0.0, -6.0))
+                    .with_parent(triangle_transform_1.clone())
                     .build(),
             )),
             camera,
@@ -452,6 +389,27 @@ impl Engine {
     }
 
     pub fn update(&mut self) {
+        self.scene
+            .query_mut::<(
+                &mut crate::component::TransformType,
+                &mut crate::component::Render,
+            )>()
+            .into_iter()
+            .enumerate()
+            .for_each(|(i, (_, (transform, _)))| {
+                let mut transform = transform.lock().unwrap();
+
+                if i == 0 {
+                    transform.add_rotation_y(0.5);
+                }
+
+                self.queue.write_buffer(
+                    transform.buffer.as_ref().unwrap(),
+                    0,
+                    bytemuck::cast_slice(&[transform.to_raw()]),
+                );
+            });
+
         // Provisional camera controller
         self.scene
             .query_mut::<(
@@ -502,43 +460,6 @@ impl Engine {
                 self.mouse_delta = (0.0, 0.0);
 
                 camera.update(&transform, &self.queue);
-            });
-
-        self.scene
-            .query_mut::<(
-                &mut crate::component::TransformType,
-                &mut crate::component::Render,
-            )>()
-            .into_iter()
-            .enumerate()
-            .for_each(|(i, (_, (transform, _)))| {
-                let mut transform = transform.lock().unwrap();
-
-                if i == 0 {
-                    transform.add_rotation_y(0.1);
-                }
-
-                if i == 1 {
-                    transform.add_rotation_x(0.5);
-                }
-
-                if i == 2 {
-                    transform.add_rotation_z(-1.0);
-                }
-
-                if i == 3 {
-                    transform.add_rotation_x(1.0);
-                }
-
-                if i == 4 {
-                    transform.add_rotation_y(1.0);
-                }
-
-                self.queue.write_buffer(
-                    transform.buffer.as_ref().unwrap(),
-                    0,
-                    bytemuck::cast_slice(&[transform.to_raw()]),
-                );
             });
     }
 

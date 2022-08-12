@@ -121,7 +121,7 @@ impl Camera {
             &transform.get_position().into(),
             &(transform.get_position() + transform.forward()).into(),
             &transform.up(),
-        )
+        ) * nalgebra_glm::inverse(&(transform.get_parent_matrix()))
     }
 }
 
