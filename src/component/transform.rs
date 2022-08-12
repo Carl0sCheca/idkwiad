@@ -2,11 +2,13 @@
 
 #[derive(Debug)]
 pub struct Transform {
-    pub position: nalgebra_glm::Vec3,
-    pub rotation: nalgebra_glm::Vec3,
-    pub size: nalgebra_glm::Vec3,
+    position: nalgebra_glm::Vec3,
+    rotation: nalgebra_glm::Vec3,
+    size: nalgebra_glm::Vec3,
     q_rotation: nalgebra_glm::Quat,
+    pub parent: Option<std::sync::Arc<std::sync::Mutex<Transform>>>,
     pub buffer: Option<std::sync::Arc<wgpu::Buffer>>,
+    matrix: nalgebra_glm::Mat4,
 }
 
 #[repr(C)]
@@ -17,6 +19,8 @@ pub struct TransformRaw {
 
 impl Default for Transform {
     fn default() -> Self {
+        let position = nalgebra_glm::zero();
+
         let rot_x = nalgebra_glm::quat_rotate(
             &nalgebra_glm::Quat::identity(),
             f32::to_radians(0.0),
@@ -33,14 +37,20 @@ impl Default for Transform {
             &nalgebra_glm::Vec3::z(),
         );
 
-        let rotation = (rot_x * rot_y * rot_z).normalize();
+        let q_rotation = (rot_x * rot_y * rot_z).normalize();
+        let rotation = nalgebra_glm::quat_euler_angles(&q_rotation);
+
+        let mut matrix = nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &position);
+        matrix = matrix * nalgebra_glm::quat_to_mat4(&q_rotation);
 
         Self {
-            position: nalgebra_glm::zero(),
-            rotation: nalgebra_glm::quat_euler_angles(&rotation),
+            position,
+            rotation,
             size: nalgebra_glm::vec3(1.0, 1.0, 1.0),
-            q_rotation: rotation,
+            q_rotation,
+            parent: None,
             buffer: None,
+            matrix,
         }
     }
 }
@@ -54,6 +64,8 @@ impl TransformBuild {
 
     pub fn with_position(mut self, position: nalgebra_glm::Vec3) -> Self {
         self.0.position = position;
+        self.0.matrix = self.0.matrix * nalgebra_glm::translate(&self.0.matrix, &position);
+
         self
     }
 
@@ -78,6 +90,13 @@ impl TransformBuild {
 
         self.0.q_rotation = rotation;
         self.0.rotation = nalgebra_glm::quat_euler_angles(&rotation);
+        self.0.matrix = self.0.matrix * nalgebra_glm::quat_to_mat4(&self.0.q_rotation);
+
+        self
+    }
+
+    pub fn with_parent(mut self, parent: std::sync::Arc<std::sync::Mutex<Transform>>) -> Self {
+        self.0.parent = Some(parent);
         self
     }
 
@@ -103,14 +122,47 @@ impl TransformBuild {
 
 impl Transform {
     pub fn to_raw(&self) -> TransformRaw {
-        let mut transform =
-            nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &self.position);
-
-        transform = transform * nalgebra_glm::quat_to_mat4(&self.q_rotation);
+        let transform = self.matrix;
+        let final_transform = self.get_parent_matrix() * transform;
 
         TransformRaw {
-            transform: transform.into(),
+            transform: final_transform.into(),
         }
+    }
+
+    pub fn get_matrix(&self) -> nalgebra_glm::Mat4 {
+        self.matrix
+    }
+
+    pub fn get_parent_matrix(&self) -> nalgebra_glm::Mat4 {
+        let mut parent_matrix = nalgebra_glm::Mat4::identity();
+        if let Some(parent) = self.parent.as_ref() {
+            let _parent_matrix = parent.lock().unwrap().get_matrix();
+            let _parent_parent_matrix = parent.lock().unwrap().get_parent_matrix();
+
+            parent_matrix = _parent_parent_matrix * _parent_matrix;
+        }
+
+        parent_matrix
+    }
+
+    pub fn get_position(&self) -> nalgebra_glm::Vec3 {
+        self.position
+    }
+
+    pub fn set_position(&mut self, new_position: &nalgebra_glm::Vec3) {
+        let pos = new_position - self.position;
+
+        self.position = new_position.clone();
+
+        self.matrix = self.matrix * nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &pos);
+    }
+
+    pub fn add_position(&mut self, new_position: &nalgebra_glm::Vec3) {
+        self.position = self.position + new_position.clone();
+
+        self.matrix =
+            self.matrix * nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &new_position);
     }
 
     pub fn forward(&self) -> nalgebra_glm::Vec3 {
@@ -125,6 +177,14 @@ impl Transform {
         nalgebra_glm::row(&nalgebra_glm::quat_to_mat4(&self.q_rotation), 0).xyz()
     }
 
+    pub fn get_rotation(&self) -> nalgebra_glm::Vec3 {
+        self.rotation
+    }
+
+    pub fn get_q_rotation(&self) -> nalgebra_glm::Quat {
+        self.q_rotation
+    }
+
     pub fn add_rotation_x(&mut self, angle: f32) {
         let rot = nalgebra_glm::quat_rotate(
             &nalgebra_glm::Quat::identity(),
@@ -135,6 +195,8 @@ impl Transform {
         self.q_rotation = (self.q_rotation * rot).normalize();
 
         self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+
+        self.matrix = self.matrix * nalgebra_glm::quat_to_mat4(&rot);
     }
 
     pub fn add_rotation_y(&mut self, angle: f32) {
@@ -147,6 +209,8 @@ impl Transform {
         self.q_rotation = (self.q_rotation * rot).normalize();
 
         self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+
+        self.matrix = self.matrix * nalgebra_glm::quat_to_mat4(&rot);
     }
 
     pub fn add_rotation_z(&mut self, angle: f32) {
@@ -159,6 +223,8 @@ impl Transform {
         self.q_rotation = (self.q_rotation * rot).normalize();
 
         self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+
+        self.matrix = self.matrix * nalgebra_glm::quat_to_mat4(&rot);
     }
 
     pub fn add_rotation_global_x(&mut self, angle: f32) {
@@ -171,6 +237,8 @@ impl Transform {
         self.q_rotation = (self.q_rotation * rot).normalize();
 
         self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+
+        self.matrix = self.matrix * nalgebra_glm::quat_to_mat4(&rot);
     }
 
     pub fn add_rotation_global_y(&mut self, angle: f32) {
@@ -183,6 +251,8 @@ impl Transform {
         self.q_rotation = (self.q_rotation * rot).normalize();
 
         self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+
+        self.matrix = self.matrix * nalgebra_glm::quat_to_mat4(&rot);
     }
 
     pub fn add_rotation_global_z(&mut self, angle: f32) {
@@ -195,6 +265,8 @@ impl Transform {
         self.q_rotation = (self.q_rotation * rot).normalize();
 
         self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+
+        self.matrix = self.matrix * nalgebra_glm::quat_to_mat4(&rot);
     }
 
     pub fn add_rotation_axis(&mut self, angle: f32, axis: &nalgebra_glm::Vec3) {
@@ -204,5 +276,7 @@ impl Transform {
         self.q_rotation = (self.q_rotation * rot).normalize();
 
         self.rotation = nalgebra_glm::degrees(&nalgebra_glm::quat_euler_angles(&self.q_rotation));
+
+        self.matrix = self.matrix * nalgebra_glm::quat_to_mat4(&rot);
     }
 }

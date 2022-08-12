@@ -1,5 +1,8 @@
 use std::collections::HashMap;
-use std::{rc::Rc, sync::Arc};
+use std::{
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 pub struct Engine {
     window: Arc<winit::window::Window>,
@@ -157,6 +160,7 @@ impl Engine {
         let mut render_pipelines = HashMap::new();
         render_pipelines.insert("Default".to_owned(), render_pipeline);
 
+        // Add bindgroups to hashmap
         let mut bind_groups = HashMap::new();
         bind_groups.insert("Camera".to_owned(), Rc::new(camera_bind_group));
 
@@ -164,39 +168,13 @@ impl Engine {
         let mut scene = hecs::World::new();
 
         // Spawn triangle
-        let triangle_transform = crate::component::TransformBuild::new()
-            .with_position(nalgebra_glm::vec3(0.0, 0.0, 0.0))
-            .with_buffer(device.as_ref())
-            .build();
-
-        scene.spawn((
-            crate::component::render::Render::new(
-                device.as_ref(),
-                (
-                    vec![
-                        crate::vertex_type::DefaultVertex {
-                            position: [0.0, 1.0, 0.0],
-                        },
-                        crate::vertex_type::DefaultVertex {
-                            position: [1.0, -1.0, 0.0],
-                        },
-                        crate::vertex_type::DefaultVertex {
-                            position: [-1.0, -1.0, 0.0],
-                        },
-                    ],
-                    vec![0u16, 2, 1],
-                ),
-                "Default".to_string(),
-                triangle_transform.buffer.clone(),
-            ),
-            triangle_transform,
+        let triangle_transform_1 = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(0.0, 0.0, 0.0))
+                .with_buffer(device.as_ref())
+                .build(),
         ));
 
-        let triangle_transform = crate::component::TransformBuild::new()
-            .with_position(nalgebra_glm::vec3(3.0, 0.0, 0.0))
-            .with_buffer(device.as_ref())
-            .build();
-
         scene.spawn((
             crate::component::render::Render::new(
                 device.as_ref(),
@@ -215,15 +193,18 @@ impl Engine {
                     vec![0u16, 2, 1],
                 ),
                 "Default".to_string(),
-                triangle_transform.buffer.clone(),
+                triangle_transform_1.clone().lock().unwrap().buffer.clone(),
             ),
-            triangle_transform,
+            triangle_transform_1.clone(),
         ));
 
-        let triangle_transform = crate::component::TransformBuild::new()
-            .with_position(nalgebra_glm::vec3(-3.0, 0.0, 0.0))
-            .with_buffer(device.as_ref())
-            .build();
+        let triangle_transform_2 = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(6.0, 0.0, 0.0))
+                .with_buffer(device.as_ref())
+                .with_parent(triangle_transform_1.clone())
+                .build(),
+        ));
 
         scene.spawn((
             crate::component::render::Render::new(
@@ -243,16 +224,111 @@ impl Engine {
                     vec![0u16, 2, 1],
                 ),
                 "Default".to_string(),
-                triangle_transform.buffer.clone(),
+                triangle_transform_2.clone().lock().unwrap().buffer.clone(),
             ),
-            triangle_transform,
+            triangle_transform_2.clone(),
+        ));
+
+        let triangle_transform_3 = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(3.0, 0.0, 0.0))
+                .with_buffer(device.as_ref())
+                .with_parent(triangle_transform_2.clone())
+                .build(),
+        ));
+
+        scene.spawn((
+            crate::component::render::Render::new(
+                device.as_ref(),
+                (
+                    vec![
+                        crate::vertex_type::DefaultVertex {
+                            position: [0.0, 1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [1.0, -1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [-1.0, -1.0, 0.0],
+                        },
+                    ],
+                    vec![0u16, 2, 1],
+                ),
+                "Default".to_string(),
+                triangle_transform_3.clone().lock().unwrap().buffer.clone(),
+            ),
+            triangle_transform_3.clone(),
+        ));
+
+        let triangle_transform_4 = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(-3.0, 0.0, 0.0))
+                .with_buffer(device.as_ref())
+                .with_parent(triangle_transform_1.clone())
+                .build(),
+        ));
+
+        scene.spawn((
+            crate::component::render::Render::new(
+                device.as_ref(),
+                (
+                    vec![
+                        crate::vertex_type::DefaultVertex {
+                            position: [0.0, 1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [1.0, -1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [-1.0, -1.0, 0.0],
+                        },
+                    ],
+                    vec![0u16, 2, 1],
+                ),
+                "Default".to_string(),
+                triangle_transform_4.clone().lock().unwrap().buffer.clone(),
+            ),
+            triangle_transform_4.clone(),
+        ));
+
+        let triangle_transform_5 = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(0.0, -2.0, 0.0))
+                .with_buffer(device.as_ref())
+                .with_parent(triangle_transform_4.clone())
+                .build(),
+        ));
+
+        scene.spawn((
+            crate::component::render::Render::new(
+                device.as_ref(),
+                (
+                    vec![
+                        crate::vertex_type::DefaultVertex {
+                            position: [0.0, 1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [1.0, -1.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [-1.0, -1.0, 0.0],
+                        },
+                    ],
+                    vec![0u16, 2, 1],
+                ),
+                "Default".to_string(),
+                triangle_transform_5.clone().lock().unwrap().buffer.clone(),
+            ),
+            triangle_transform_5.clone(),
         ));
 
         // Spawn camera
         let camera = scene.spawn((
-            crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(0.0, 0.0, -6.0))
-                .build(),
+            Arc::new(Mutex::new(
+                crate::component::TransformBuild::new()
+                    .with_position(nalgebra_glm::vec3(0.0, 0.0, -6.0))
+                    .build(),
+            )),
             camera,
         ));
 
@@ -327,13 +403,16 @@ impl Engine {
                 .show(ctx, |ui| {
                     let transform = self
                         .scene
-                        .query_one_mut::<&crate::component::Transform>(self.camera)
+                        .query_one_mut::<&crate::component::TransformType>(self.camera)
+                        .unwrap()
+                        .lock()
                         .unwrap();
 
                     ui.label(
                         egui::RichText::new(format!(
                             "position: {:.4?}\nrotation: {:.4?}",
-                            transform.position, transform.rotation
+                            transform.get_position(),
+                            transform.get_rotation()
                         ))
                         .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
                         .color(egui::Color32::WHITE)
@@ -376,22 +455,28 @@ impl Engine {
         // Provisional camera controller
         self.scene
             .query_mut::<(
-                &mut crate::component::Transform,
+                &mut crate::component::TransformType,
                 &mut crate::component::Camera,
             )>()
             .into_iter()
             .for_each(|(_, (transform, camera))| {
+                let mut transform = transform.lock().unwrap();
+                let position = transform.get_position();
+                let right = transform.right();
+                let forward = transform.forward();
+                let up = transform.up();
+
                 if self.input.0 {
-                    transform.position += transform.right() * 0.01;
+                    transform.set_position(&(position + right * 0.05));
                 }
                 if self.input.1 {
-                    transform.position -= transform.right() * 0.01;
+                    transform.set_position(&(position - right * 0.05));
                 }
                 if self.input.2 {
-                    transform.position += transform.forward() * 0.01;
+                    transform.set_position(&(position + forward * 0.05));
                 }
                 if self.input.3 {
-                    transform.position -= transform.forward() * 0.01;
+                    transform.set_position(&(position - forward * 0.05));
                 }
                 if self.input.4 {
                     transform.add_rotation_z(-0.1);
@@ -400,16 +485,15 @@ impl Engine {
                     transform.add_rotation_z(0.1);
                 }
                 if self.input.6 {
-                    transform.position.y -= 0.01;
+                    transform.set_position(&(position - nalgebra_glm::Vec3::y() * 0.05));
                 }
                 if self.input.7 {
-                    transform.position.y += 0.01;
+                    transform.set_position(&(position + nalgebra_glm::Vec3::y() * 0.05));
                 }
 
                 transform.add_rotation_x(-self.mouse_delta.1 * 0.5);
                 // transform.add_rotation_y(self.mouse_delta.0 * 0.5);
-                transform
-                    .add_rotation_global_y(self.mouse_delta.0 * 0.5 * transform.up().y.signum());
+                transform.add_rotation_global_y(self.mouse_delta.0 * 0.5 * up.y.signum());
 
                 self.window
                     .set_cursor_position(winit::dpi::PhysicalPosition { x: 640.0, y: 360.0 })
@@ -422,25 +506,39 @@ impl Engine {
 
         self.scene
             .query_mut::<(
-                &mut crate::component::Transform,
+                &mut crate::component::TransformType,
                 &mut crate::component::Render,
             )>()
             .into_iter()
             .enumerate()
             .for_each(|(i, (_, (transform, _)))| {
+                let mut transform = transform.lock().unwrap();
+
                 if i == 0 {
-                    transform.add_rotation_global_y(0.5);
-                } else if i == 1 {
-                    transform.add_rotation_global_y(-0.5);
-                } else if i == 2 {
-                    transform.add_rotation_global_x(0.5);
+                    transform.add_rotation_y(0.1);
+                }
+
+                if i == 1 {
+                    transform.add_rotation_x(0.5);
+                }
+
+                if i == 2 {
+                    transform.add_rotation_z(-1.0);
+                }
+
+                if i == 3 {
+                    transform.add_rotation_x(1.0);
+                }
+
+                if i == 4 {
+                    transform.add_rotation_y(1.0);
                 }
 
                 self.queue.write_buffer(
                     transform.buffer.as_ref().unwrap(),
                     0,
                     bytemuck::cast_slice(&[transform.to_raw()]),
-                )
+                );
             });
     }
 

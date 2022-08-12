@@ -118,8 +118,8 @@ impl Camera {
 
     pub fn build_view(&self, transform: &super::Transform) -> nalgebra_glm::Mat4 {
         nalgebra_glm::Mat4::look_at_rh(
-            &transform.position.into(),
-            &(transform.position + transform.forward()).into(),
+            &transform.get_position().into(),
+            &(transform.get_position() + transform.forward()).into(),
             &transform.up(),
         )
     }
