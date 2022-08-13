@@ -284,7 +284,7 @@ impl Engine {
         // Spawn triangle
         let triangle_transform_1 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(0.0, 3.0, 0.0))
+                .with_position(nalgebra_glm::vec3(0.0, 1.0, 0.0))
                 // .with_rotation(nalgebra_glm::vec3(-90.0, 0.0, 180.0))
                 .with_buffer(device.as_ref())
                 .build(),
@@ -315,7 +315,7 @@ impl Engine {
 
         let triangle_transform_2 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(3.0, 3.0, 0.0))
+                .with_position(nalgebra_glm::vec3(3.0, 1.0, 0.0))
                 .with_buffer(device.as_ref())
                 .build(),
         ));
@@ -345,7 +345,7 @@ impl Engine {
 
         let triangle_transform_3 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(-3.0, 3.0, 0.0))
+                .with_position(nalgebra_glm::vec3(-3.0, 1.0, 0.0))
                 .with_buffer(device.as_ref())
                 .build(),
         ));
@@ -378,7 +378,7 @@ impl Engine {
             Arc::new(Mutex::new(
                 crate::component::TransformBuild::new()
                     .with_position(nalgebra_glm::vec3(0.0, 0.0, -6.0))
-                    .with_parent(triangle_transform_1.clone())
+                    // .with_parent(triangle_transform_1.clone())
                     .build(),
             )),
             camera,
@@ -386,7 +386,7 @@ impl Engine {
 
         let lines = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_buffer(device.as_ref())
+                // .with_buffer(device.as_ref())
                 .build(),
         ));
 
@@ -542,11 +542,16 @@ impl Engine {
                     transform.add_rotation_y(0.5);
                 }
 
-                self.queue.write_buffer(
-                    transform.buffer.as_ref().unwrap(),
-                    0,
-                    bytemuck::cast_slice(&[transform.to_raw()]),
-                );
+                match transform.buffer.as_ref() {
+                    Some(buffer) => {
+                        self.queue.write_buffer(
+                            buffer,
+                            0,
+                            bytemuck::cast_slice(&[transform.to_raw()]),
+                        );
+                    }
+                    None => {}
+                }
             });
 
         // Provisional camera controller
