@@ -21,6 +21,7 @@ pub struct Engine {
     input: (bool, bool, bool, bool, bool, bool, bool, bool),
     pub mouse_delta: (f32, f32),
     camera: hecs::Entity,
+    depth_texture: crate::texture::Texture,
 }
 
 impl Engine {
@@ -62,6 +63,10 @@ impl Engine {
         };
 
         surface.configure(&device, &config);
+
+        // Depth texture
+        let depth_texture =
+            crate::texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
         // Camera
         let (camera, camera_bind_group, camera_bind_group_layout) = crate::component::Camera::new(
@@ -150,7 +155,15 @@ impl Engine {
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,
                 },
-                depth_stencil: None,
+                depth_stencil: Some(wgpu::TextureFormat::Depth32Float).map(|format| {
+                    wgpu::DepthStencilState {
+                        format,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }
+                }),
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
             })
@@ -242,7 +255,15 @@ impl Engine {
                     polygon_mode: wgpu::PolygonMode::Line,
                     conservative: false,
                 },
-                depth_stencil: None,
+                depth_stencil: Some(wgpu::TextureFormat::Depth32Float).map(|format| {
+                    wgpu::DepthStencilState {
+                        format,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }
+                }),
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
             })
@@ -396,6 +417,7 @@ impl Engine {
             bind_groups,
             mouse_delta: (0.0, 0.0),
             camera,
+            depth_texture,
         }
     }
 
@@ -426,7 +448,14 @@ impl Engine {
                     store: true,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            }),
         });
 
         self.scene
@@ -634,6 +663,11 @@ impl Engine {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+            self.depth_texture = crate::texture::Texture::create_depth_texture(
+                self.device.as_ref(),
+                &self.config,
+                "depth_texture",
+            );
             println!("New window size: {:?}", self.window.inner_size());
         }
     }
