@@ -1,5 +1,6 @@
 mod component;
 mod engine;
+mod shapes;
 mod vertex_type;
 
 pub async fn run() {

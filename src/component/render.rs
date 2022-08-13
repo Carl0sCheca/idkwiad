@@ -8,9 +8,9 @@ pub struct Render {
 }
 
 impl Render {
-    pub fn new(
+    pub fn new<T: bytemuck::Pod>(
         device: &wgpu::Device,
-        mesh: (Vec<crate::vertex_type::DefaultVertex>, Vec<u16>),
+        mesh: (Vec<T>, Vec<u16>),
         pipeline: String,
         transform_buffer: Option<std::sync::Arc<wgpu::Buffer>>,
     ) -> Self {
@@ -36,7 +36,7 @@ impl Render {
             vertex_buffer,
             index_buffer,
             pipeline,
-            index_count: mesh.1.len() as _,
+            index_count: mesh.1.len() as u32,
             transform_buffer,
         }
     }

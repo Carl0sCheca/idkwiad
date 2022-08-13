@@ -41,7 +41,7 @@ impl Engine {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::default(),
+                    features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::default(),
                     limits: wgpu::Limits::default(),
                 },
                 None,
@@ -156,9 +156,102 @@ impl Engine {
             })
         });
 
+        let line_render_pipeline = Rc::new({
+            let render_pipeline_layout =
+                device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Render Pipeline Layout Descriptor"),
+                    bind_group_layouts: &[&camera_bind_group_layout],
+                    push_constant_ranges: &[],
+                });
+            let shader = wgpu::ShaderModuleDescriptor {
+                label: Some("Render Pipeline Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/line.wgsl").into()),
+            };
+
+            let shader = device.create_shader_module(shader);
+
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Render Pipeline"),
+                layout: Some(&render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "v_main",
+                    buffers: &[
+                        wgpu::VertexBufferLayout {
+                            array_stride: std::mem::size_of::<crate::vertex_type::LineVertex>()
+                                as u64,
+                            step_mode: wgpu::VertexStepMode::Vertex,
+                            attributes: &[
+                                wgpu::VertexAttribute {
+                                    format: wgpu::VertexFormat::Float32x3,
+                                    offset: 0,
+                                    shader_location: 0,
+                                },
+                                wgpu::VertexAttribute {
+                                    format: wgpu::VertexFormat::Float32x3,
+                                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                                    shader_location: 1,
+                                },
+                            ],
+                        },
+                        wgpu::VertexBufferLayout {
+                            array_stride: std::mem::size_of::<
+                                crate::component::transform::TransformRaw,
+                            >() as wgpu::BufferAddress,
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &[
+                                wgpu::VertexAttribute {
+                                    offset: 0,
+                                    shader_location: 5,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                                wgpu::VertexAttribute {
+                                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                                    shader_location: 6,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                                wgpu::VertexAttribute {
+                                    offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                                    shader_location: 7,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                                wgpu::VertexAttribute {
+                                    offset: std::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                                    shader_location: 8,
+                                    format: wgpu::VertexFormat::Float32x4,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "f_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::LineList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    unclipped_depth: false,
+                    polygon_mode: wgpu::PolygonMode::Line,
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview: None,
+            })
+        });
+
         // Add pipeline to hashmap
         let mut render_pipelines = HashMap::new();
         render_pipelines.insert("Default".to_owned(), render_pipeline);
+        render_pipelines.insert("Line".to_owned(), line_render_pipeline);
 
         // Add bindgroups to hashmap
         let mut bind_groups = HashMap::new();
@@ -170,7 +263,8 @@ impl Engine {
         // Spawn triangle
         let triangle_transform_1 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(0.0, 0.0, 0.0))
+                .with_position(nalgebra_glm::vec3(0.0, 3.0, 0.0))
+                // .with_rotation(nalgebra_glm::vec3(-90.0, 0.0, 180.0))
                 .with_buffer(device.as_ref())
                 .build(),
         ));
@@ -200,7 +294,7 @@ impl Engine {
 
         let triangle_transform_2 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(3.0, 0.0, 0.0))
+                .with_position(nalgebra_glm::vec3(3.0, 3.0, 0.0))
                 .with_buffer(device.as_ref())
                 .build(),
         ));
@@ -230,7 +324,7 @@ impl Engine {
 
         let triangle_transform_3 = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
-                .with_position(nalgebra_glm::vec3(-3.0, 0.0, 0.0))
+                .with_position(nalgebra_glm::vec3(-3.0, 3.0, 0.0))
                 .with_buffer(device.as_ref())
                 .build(),
         ));
@@ -267,6 +361,22 @@ impl Engine {
                     .build(),
             )),
             camera,
+        ));
+
+        let lines = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_buffer(device.as_ref())
+                .build(),
+        ));
+
+        scene.spawn((
+            crate::component::Render::new(
+                device.as_ref(),
+                crate::shapes::create_grid(100.0, 100.0, 50, 50),
+                "Line".to_owned(),
+                lines.clone().lock().unwrap().buffer.clone(),
+            ),
+            lines.clone(),
         ));
 
         Self {
