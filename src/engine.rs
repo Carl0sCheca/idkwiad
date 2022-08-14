@@ -394,7 +394,7 @@ impl Engine {
             quad.clone(),
             crate::component::Render::new(
                 device.as_ref(),
-                crate::shapes::create_quad_marching_squares(10, 10),
+                crate::shapes::create_quad_marching_squares(50, 50),
                 "Default".to_string(),
                 quad.clone().lock().unwrap().buffer.clone(),
             ),

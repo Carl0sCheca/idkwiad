@@ -60,21 +60,32 @@ pub fn create_quad_marching_squares(
 
     let mut vert_values = vec![];
 
-    use rand::{thread_rng, Rng};
-    let mut rng = thread_rng();
+    // use rand::{thread_rng, Rng};
+    // let mut rng = thread_rng();
 
-    for _ in 0..(x * y) {
-        vert_values.push(rng.gen_range(0.0..=1.0));
-        // vert_values.push(0.0);
+    // for _ in 0..(x * y) {
+    // vert_values.push(rng.gen_range(0.0..=1.0));
+    // vert_values.push(0.0);
+    // }
+
+    use noise::Seedable;
+    let noise_generator = noise::Fbm::new();
+    let mut noise_generator = noise_generator.set_seed(19);
+
+    noise_generator.lacunarity = 0.3;
+    noise_generator.persistence = 0.1;
+
+    use noise::NoiseFn;
+
+    for i in 0..x {
+        for j in 0..y {
+            let val = noise_generator.get([i as f64, j as f64]);
+            vert_values.push(val);
+            dbg!(&vert_values.last().unwrap());
+        }
     }
 
-    // vert_values[1] = 1.0;
-    // vert_values[2] = 1.0;
-    // vert_values[3] = 1.0;
-    // vert_values[x as usize] = 0.0;
-    // vert_values[x as usize * 2 + 10] = 1.0;
-
-    const THRESHOLD: f32 = 0.3;
+    const THRESHOLD: f64 = 0.00;
 
     for i in 1..x - 1 {
         for j in 1..y - 1 {
@@ -94,12 +105,7 @@ pub fn create_quad_marching_squares(
             let position_d = (i + 1) * x + j;
             let d = vert_values[position_d as usize];
 
-            match (
-                a - THRESHOLD > 0.0,
-                b - THRESHOLD > 0.0,
-                c - THRESHOLD > 0.0,
-                d - THRESHOLD > 0.0,
-            ) {
+            match (a < THRESHOLD, b < THRESHOLD, c < THRESHOLD, d < THRESHOLD) {
                 (false, false, false, false) => {}
                 (false, false, false, true) => {
                     let color = [0.0, 1.0, 1.0];
