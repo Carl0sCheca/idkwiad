@@ -47,3 +47,758 @@ pub fn create_grid(width: f32, depth: f32, m: u32, n: u32) -> (Vec<LineVertex>, 
 
     (vertices, indices)
 }
+
+pub fn create_quad_marching_squares(
+    width: u16,
+    depth: u16,
+) -> (Vec<crate::vertex_type::DefaultVertex>, Vec<u16>) {
+    let mut vertices = vec![];
+    let mut indices: Vec<u16> = vec![];
+
+    let x: u16 = width * 2 + 2;
+    let y: u16 = depth * 2 + 2;
+
+    let mut vert_values = vec![];
+
+    use rand::{thread_rng, Rng};
+    let mut rng = thread_rng();
+
+    for _ in 0..(x * y) {
+        vert_values.push(rng.gen_range(0.0..=1.0));
+        // vert_values.push(0.0);
+    }
+
+    // vert_values[1] = 1.0;
+    // vert_values[2] = 1.0;
+    // vert_values[3] = 1.0;
+    // vert_values[x as usize] = 0.0;
+    // vert_values[x as usize * 2 + 10] = 1.0;
+
+    const THRESHOLD: f32 = 0.3;
+
+    for i in 1..x - 1 {
+        for j in 1..y - 1 {
+            //  a - b
+            //  |   |
+            //  d - c
+
+            let position_a = i * x + j;
+            let a = vert_values[position_a as usize];
+
+            let position_b = i * x + j + 1;
+            let b = vert_values[position_b as usize];
+
+            let position_c = (i + 1) * x + j + 1;
+            let c = vert_values[position_c as usize];
+
+            let position_d = (i + 1) * x + j;
+            let d = vert_values[position_d as usize];
+
+            match (
+                a - THRESHOLD > 0.0,
+                b - THRESHOLD > 0.0,
+                c - THRESHOLD > 0.0,
+                d - THRESHOLD > 0.0,
+            ) {
+                (false, false, false, false) => {}
+                (false, false, false, true) => {
+                    let color = [0.0, 1.0, 1.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (false, false, true, false) => {
+                    let color = [1.0, 1.0, 0.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (false, false, true, true) => {
+                    let color = [0.0, 0.0, 0.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (false, true, false, false) => {
+                    let color = [1.0, 1.0, 1.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (false, true, false, true) => {
+                    let color = [1.0, 0.0, 1.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 6) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                }
+                (false, true, true, false) => {
+                    let color = [0.2, 0.4, 0.7];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (false, true, true, true) => {
+                    let color = [1.0, 1.0, 1.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                }
+                (true, false, false, false) => {
+                    let color = [1.0, 1.0, 1.0];
+
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                }
+                (true, false, false, true) => {
+                    let color = [0.7, 0.7, 0.7];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (true, false, true, false) => {
+                    let color = [0.0, 1.0, 0.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+                    indices.push((vertices.len() - 6) as u16);
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+                }
+                (true, false, true, true) => {
+                    let color = [1.0, 1.0, 1.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (true, true, false, false) => {
+                    let color = [0.7, 0.2, 0.5];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                }
+                (true, true, false, true) => {
+                    let color = [1.0, 0.0, 1.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (true, true, true, false) => {
+                    let color = [1.0, 1.0, 0.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.5 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            0.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            0.5 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 5) as u16);
+
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 1) as u16);
+                }
+                (true, true, true, true) => {
+                    let color = [0.0, 1.0, 0.0];
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            1.0 + i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+                    vertices.push(crate::vertex_type::DefaultVertex {
+                        position: [
+                            i as f32 - width as f32 / 2.0,
+                            0.0,
+                            1.0 + j as f32 - depth as f32 / 2.0,
+                        ],
+                        color,
+                    });
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                    indices.push((vertices.len() - 4) as u16);
+
+                    indices.push((vertices.len() - 1) as u16);
+                    indices.push((vertices.len() - 2) as u16);
+                    indices.push((vertices.len() - 3) as u16);
+                }
+            }
+        }
+    }
+
+    (vertices, indices)
+}

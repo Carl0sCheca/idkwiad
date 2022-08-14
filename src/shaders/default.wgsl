@@ -15,6 +15,7 @@ var<uniform> camera: CameraUniform;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
+    @location(1) color: vec3<f32>,
 };
 
 struct VertexOutput {
@@ -42,7 +43,7 @@ fn v_main(model: VertexInput, transform: TransformInput) -> VertexOutput {
     var out: VertexOutput;
 
     out.clip_position = OPENGL_TO_WGPU_MATRIX * camera.projection * camera.view * transform_matrix * vec4<f32>(model.position, 1.0);
-    out.color = vec3<f32>(1.0, 0.0, 1.0);
+    out.color = model.color;
     return out;
 }
 
