@@ -388,7 +388,7 @@ impl Engine {
                 .build(),
         ));
 
-        quad.as_ref().clone().lock().unwrap().add_rotation_x(-90.0);
+        quad.lock().unwrap().add_rotation_x(-90.0);
 
         scene.spawn((
             quad.clone(),
@@ -396,7 +396,7 @@ impl Engine {
                 device.as_ref(),
                 crate::shapes::create_quad_marching_squares(50, 50),
                 "Default".to_string(),
-                quad.clone().lock().unwrap().buffer.clone(),
+                quad.lock().unwrap().buffer.clone(),
             ),
         ));
 
@@ -422,7 +422,7 @@ impl Engine {
                 device.as_ref(),
                 crate::shapes::create_grid(100.0, 100.0, 50, 50),
                 "Line".to_owned(),
-                lines.clone().lock().unwrap().buffer.clone(),
+                lines.lock().unwrap().buffer.clone(),
             ),
             lines.clone(),
         ));
@@ -563,21 +563,21 @@ impl Engine {
             .into_iter()
             .enumerate()
             .for_each(|(_i, (_, (transform, _)))| {
-                let transform = transform.lock().unwrap();
+                if let Ok(transform) = transform.lock() {
+                    // if i == 0 {
+                    // transform.add_rotation_y(0.5);
+                    // }
 
-                // if i == 0 {
-                // transform.add_rotation_y(0.5);
-                // }
-
-                match transform.buffer.as_ref() {
-                    Some(buffer) => {
-                        self.queue.write_buffer(
-                            buffer,
-                            0,
-                            bytemuck::cast_slice(&[transform.to_raw()]),
-                        );
+                    match transform.buffer.as_ref() {
+                        Some(buffer) => {
+                            self.queue.write_buffer(
+                                buffer,
+                                0,
+                                bytemuck::cast_slice(&[transform.to_raw()]),
+                            );
+                        }
+                        None => {}
                     }
-                    None => {}
                 }
             });
 
@@ -589,64 +589,61 @@ impl Engine {
             )>()
             .into_iter()
             .for_each(|(_, (transform, camera))| {
-                let mut transform = transform.lock().unwrap();
+                if let Ok(mut transform) = transform.lock() {
+                    if self.input.0 {
+                        let position = transform.get_position();
+                        let right = transform.right();
+                        transform.set_position(&(position + right * 0.05));
+                    }
+                    if self.input.1 {
+                        let position = transform.get_position();
+                        let right = transform.right();
+                        transform.set_position(&(position - right * 0.05));
+                    }
+                    if self.input.2 {
+                        let position = transform.get_position();
+                        let forward = transform.forward();
+                        transform.set_position(&(position + forward * 0.05));
+                    }
+                    if self.input.3 {
+                        let position = transform.get_position();
+                        let forward = transform.forward();
+                        transform.set_position(&(position - forward * 0.05));
+                    }
+                    if self.input.4 {
+                        transform.add_rotation_z(-0.1);
+                    }
+                    if self.input.5 {
+                        transform.add_rotation_z(0.1);
+                    }
+                    if self.input.6 {
+                        let position = transform.get_position();
+                        transform.set_position(&(position - nalgebra_glm::Vec3::y() * 0.05));
+                    }
+                    if self.input.7 {
+                        let position = transform.get_position();
+                        transform.set_position(&(position + nalgebra_glm::Vec3::y() * 0.05));
+                    }
 
-                if self.input.0 {
-                    let position = transform.get_position();
-                    let right = transform.right();
-                    transform.set_position(&(position + right * 0.05));
-                }
-                if self.input.1 {
-                    let position = transform.get_position();
-                    let right = transform.right();
-                    transform.set_position(&(position - right * 0.05));
-                }
-                if self.input.2 {
-                    let position = transform.get_position();
-                    let forward = transform.forward();
-                    transform.set_position(&(position + forward * 0.05));
-                }
-                if self.input.3 {
-                    let position = transform.get_position();
-                    let forward = transform.forward();
-                    transform.set_position(&(position - forward * 0.05));
-                }
-                if self.input.4 {
-                    transform.add_rotation_z(-0.1);
-                }
-                if self.input.5 {
-                    transform.add_rotation_z(0.1);
-                }
-                if self.input.6 {
-                    let position = transform.get_position();
-                    transform.set_position(&(position - nalgebra_glm::Vec3::y() * 0.05));
-                }
-                if self.input.7 {
-                    let position = transform.get_position();
-                    transform.set_position(&(position + nalgebra_glm::Vec3::y() * 0.05));
-                }
+                    transform.add_rotation_x(-self.mouse_delta.1 * 0.5);
+                    // transform.add_rotation_y(self.mouse_delta.0 * 0.5);
+                    let up = transform.up();
+                    transform.add_rotation_global_y(self.mouse_delta.0 * 0.5 * up.y.signum());
 
-                transform.add_rotation_x(-self.mouse_delta.1 * 0.5);
-                // transform.add_rotation_y(self.mouse_delta.0 * 0.5);
-                let up = transform.up();
-                transform.add_rotation_global_y(self.mouse_delta.0 * 0.5 * up.y.signum());
+                    self.window
+                        .set_cursor_position(winit::dpi::PhysicalPosition { x: 640.0, y: 360.0 })
+                        .unwrap();
 
-                self.window
-                    .set_cursor_position(winit::dpi::PhysicalPosition { x: 640.0, y: 360.0 })
-                    .unwrap();
+                    self.mouse_delta = (0.0, 0.0);
 
-                self.mouse_delta = (0.0, 0.0);
-
-                camera.update(&transform, &self.queue);
+                    camera.update(&transform, &self.queue);
+                }
             });
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
         fn is_pressed(s: &winit::event::ElementState) -> bool {
-            match s {
-                winit::event::ElementState::Pressed => true,
-                _ => false,
-            }
+            matches!(s, winit::event::ElementState::Pressed)
         }
 
         match event {

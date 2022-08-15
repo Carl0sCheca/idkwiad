@@ -50,13 +50,13 @@ pub fn create_grid(width: f32, depth: f32, m: u32, n: u32) -> (Vec<LineVertex>, 
 
 pub fn create_quad_marching_squares(
     width: u16,
-    depth: u16,
+    height: u16,
 ) -> (Vec<crate::vertex_type::DefaultVertex>, Vec<u16>) {
     let mut vertices = vec![];
     let mut indices: Vec<u16> = vec![];
 
     let x: u16 = width * 2 + 2;
-    let y: u16 = depth * 2 + 2;
+    let y: u16 = height * 2 + 2;
 
     let mut vert_values = vec![];
 
@@ -64,15 +64,14 @@ pub fn create_quad_marching_squares(
     // let mut rng = thread_rng();
 
     // for _ in 0..(x * y) {
-    // vert_values.push(rng.gen_range(0.0..=1.0));
-    // vert_values.push(0.0);
+    //     vert_values.push(rng.gen_range(0.0..=1.0));
     // }
 
     use noise::Seedable;
     let noise_generator = noise::Fbm::new();
     let mut noise_generator = noise_generator.set_seed(19);
 
-    noise_generator.lacunarity = 0.3;
+    noise_generator.lacunarity = 0.1;
     noise_generator.persistence = 0.1;
 
     use noise::NoiseFn;
@@ -81,11 +80,12 @@ pub fn create_quad_marching_squares(
         for j in 0..y {
             let val = noise_generator.get([i as f64, j as f64]);
             vert_values.push(val);
-            dbg!(&vert_values.last().unwrap());
         }
     }
 
     const THRESHOLD: f64 = 0.00;
+
+    // TODO: linear interpolation
 
     for i in 1..x - 1 {
         for j in 1..y - 1 {
@@ -105,32 +105,25 @@ pub fn create_quad_marching_squares(
             let position_d = (i + 1) * x + j;
             let d = vert_values[position_d as usize];
 
+            let pos = nalgebra_glm::vec2(
+                i as f32 - width as f32 * 0.5,
+                j as f32 - height as f32 * 0.5,
+            );
+
             match (a < THRESHOLD, b < THRESHOLD, c < THRESHOLD, d < THRESHOLD) {
                 (false, false, false, false) => {}
                 (false, false, false, true) => {
                     let color = [0.0, 1.0, 1.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
 
@@ -141,27 +134,15 @@ pub fn create_quad_marching_squares(
                 (false, false, true, false) => {
                     let color = [1.0, 1.0, 0.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
@@ -172,35 +153,19 @@ pub fn create_quad_marching_squares(
                 (false, false, true, true) => {
                     let color = [0.0, 0.0, 0.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
@@ -215,27 +180,15 @@ pub fn create_quad_marching_squares(
                 (false, true, false, false) => {
                     let color = [1.0, 1.0, 1.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
@@ -246,52 +199,28 @@ pub fn create_quad_marching_squares(
                 (false, true, false, true) => {
                     let color = [1.0, 0.0, 1.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
 
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
 
@@ -314,35 +243,19 @@ pub fn create_quad_marching_squares(
                 (false, true, true, false) => {
                     let color = [0.2, 0.4, 0.7];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
@@ -357,43 +270,23 @@ pub fn create_quad_marching_squares(
                 (false, true, true, true) => {
                     let color = [1.0, 1.0, 1.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
@@ -413,27 +306,15 @@ pub fn create_quad_marching_squares(
                     let color = [1.0, 1.0, 1.0];
 
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
 
@@ -444,35 +325,19 @@ pub fn create_quad_marching_squares(
                 (true, false, false, true) => {
                     let color = [0.7, 0.7, 0.7];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
 
@@ -487,51 +352,27 @@ pub fn create_quad_marching_squares(
                 (true, false, true, false) => {
                     let color = [0.0, 1.0, 0.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
 
@@ -554,43 +395,23 @@ pub fn create_quad_marching_squares(
                 (true, false, true, true) => {
                     let color = [1.0, 1.0, 1.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
 
@@ -609,35 +430,19 @@ pub fn create_quad_marching_squares(
                 (true, true, false, false) => {
                     let color = [0.7, 0.2, 0.5];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
@@ -652,43 +457,23 @@ pub fn create_quad_marching_squares(
                 (true, true, false, true) => {
                     let color = [1.0, 0.0, 1.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
@@ -707,43 +492,23 @@ pub fn create_quad_marching_squares(
                 (true, true, true, false) => {
                     let color = [1.0, 1.0, 0.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.5 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.5 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 0.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            0.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [0.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            0.5 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 0.5 + pos.y],
                         color,
                     });
 
@@ -762,35 +527,19 @@ pub fn create_quad_marching_squares(
                 (true, true, true, true) => {
                     let color = [0.0, 1.0, 0.0];
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            1.0 + i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [1.0 + pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
                     vertices.push(crate::vertex_type::DefaultVertex {
-                        position: [
-                            i as f32 - width as f32 / 2.0,
-                            0.0,
-                            1.0 + j as f32 - depth as f32 / 2.0,
-                        ],
+                        position: [pos.x, 0.0, 1.0 + pos.y],
                         color,
                     });
 
