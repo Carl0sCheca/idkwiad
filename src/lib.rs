@@ -23,7 +23,7 @@ pub async fn run() {
             .unwrap(),
     );
 
-    let mut engine = crate::engine::Engine::new(window.clone()).await;
+    let mut engine = crate::engine::Engine::new(window.clone(), &event_loop).await;
 
     event_loop.run(move |event, _, control_flow| match event {
         winit::event::Event::WindowEvent {

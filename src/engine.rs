@@ -25,7 +25,10 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub async fn new(window: Arc<winit::window::Window>) -> Self {
+    pub async fn new(
+        window: Arc<winit::window::Window>,
+        event_loop: &winit::event_loop::EventLoop<()>,
+    ) -> Self {
         // Surface, device, queue and config
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window.as_ref()) };
@@ -59,7 +62,7 @@ impl Engine {
             format: surface_format,
             width: window.as_ref().inner_size().width,
             height: window.as_ref().inner_size().height,
-            present_mode: wgpu::PresentMode::Immediate,
+            present_mode: wgpu::PresentMode::AutoNoVsync,
         };
 
         surface.configure(&device, &config);
@@ -434,7 +437,7 @@ impl Engine {
             render_pipelines,
             egui: (
                 egui_wgpu_backend::RenderPass::new(&device, surface_format, 1),
-                egui_winit::State::new(2048, window.as_ref()),
+                egui_winit::State::new(event_loop),
                 egui::Context::default(),
             ),
             device,
@@ -632,7 +635,7 @@ impl Engine {
 
                     self.window
                         .set_cursor_position(winit::dpi::PhysicalPosition { x: 640.0, y: 360.0 })
-                        .unwrap();
+                        .unwrap_or_default();
 
                     self.mouse_delta = (0.0, 0.0);
 
