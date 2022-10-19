@@ -67,9 +67,7 @@ pub fn create_quad_marching_squares(
     //     vert_values.push(rng.gen_range(0.0..=1.0));
     // }
 
-    use noise::Seedable;
-    let noise_generator = noise::Fbm::new();
-    let mut noise_generator = noise_generator.set_seed(19);
+    let mut noise_generator = noise::Fbm::<noise::Perlin>::new(19);
 
     noise_generator.lacunarity = 0.1;
     noise_generator.persistence = 0.1;

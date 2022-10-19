@@ -63,6 +63,7 @@ impl Engine {
             width: window.as_ref().inner_size().width,
             height: window.as_ref().inner_size().height,
             present_mode: wgpu::PresentMode::AutoNoVsync,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto
         };
 
         surface.configure(&device, &config);
