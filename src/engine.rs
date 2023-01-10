@@ -4,6 +4,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+struct EGUI {
+    context: egui::Context,
+    platform: egui_winit::State,
+    renderer: egui_wgpu::Renderer,
+}
+
 pub struct Engine {
     window: Arc<winit::window::Window>,
     surface: wgpu::Surface,
@@ -13,11 +19,7 @@ pub struct Engine {
     scene: hecs::World,
     render_pipelines: HashMap<String, Rc<wgpu::RenderPipeline>>,
     bind_groups: HashMap<String, Rc<wgpu::BindGroup>>,
-    egui: (
-        egui_wgpu_backend::RenderPass,
-        egui_winit::State,
-        egui::Context,
-    ),
+    egui: EGUI,
     input: (bool, bool, bool, bool, bool, bool, bool, bool),
     pub mouse_delta: (f32, f32),
     camera: hecs::Entity,
@@ -161,7 +163,8 @@ impl Engine {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
+                    cull_mode: None,
+                    // cull_mode: Some(wgpu::Face::Back),
                     unclipped_depth: false,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,
@@ -292,37 +295,51 @@ impl Engine {
         // ECS
         let mut scene = hecs::World::new();
 
-        // // Spawn triangle
-        // let triangle_transform_1 = Arc::new(Mutex::new(
-        //     crate::component::TransformBuild::new()
-        //         .with_position(nalgebra_glm::vec3(0.0, 1.0, 0.0))
-        //         // .with_rotation(nalgebra_glm::vec3(-90.0, 0.0, 180.0))
-        //         .with_buffer(device.as_ref())
-        //         .build(),
-        // ));
+        let camera_transform = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(0.0, 4.0, -6.0))
+                // .with_parent(triangle_transform_1.clone())
+                .build(),
+        ));
 
-        // scene.spawn((
-        //     triangle_transform_1.clone(),
-        //     crate::component::render::Render::new(
-        //         device.as_ref(),
-        //         (
-        //             vec![
-        //                 crate::vertex_type::DefaultVertex {
-        //                     position: [0.0, 1.0, 0.0],
-        //                 },
-        //                 crate::vertex_type::DefaultVertex {
-        //                     position: [1.0, -1.0, 0.0],
-        //                 },
-        //                 crate::vertex_type::DefaultVertex {
-        //                     position: [-1.0, -1.0, 0.0],
-        //                 },
-        //             ],
-        //             vec![0u16, 2, 1],
-        //         ),
-        //         "Default".to_string(),
-        //         triangle_transform_1.clone().lock().unwrap().buffer.clone(),
-        //     ),
-        // ));
+        // Spawn triangle
+        let triangle_transform_1 = Arc::new(Mutex::new(
+            crate::component::TransformBuild::new()
+                .with_position(nalgebra_glm::vec3(0.0, 0.0, 4.0))
+                // .with_rotation(nalgebra_glm::vec3(-90.0, 0.0, 0.0))
+                .with_parent(camera_transform.clone())
+                .with_buffer(device.as_ref())
+                .build(),
+        ));
+
+        // Spawn camera
+        let camera = scene.spawn((camera_transform.clone(), camera));
+
+        scene.spawn((
+            triangle_transform_1.clone(),
+            crate::component::render::Render::new(
+                device.as_ref(),
+                (
+                    vec![
+                        crate::vertex_type::DefaultVertex {
+                            position: [0.0, 1.0, 0.0],
+                            color: [1.0, 0.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [1.0, -1.0, 0.0],
+                            color: [1.0, 0.0, 0.0],
+                        },
+                        crate::vertex_type::DefaultVertex {
+                            position: [-1.0, -1.0, 0.0],
+                            color: [1.0, 0.0, 0.0],
+                        },
+                    ],
+                    vec![0u16, 2, 1],
+                ),
+                "Default".to_string(),
+                triangle_transform_1.clone().lock().unwrap().buffer.clone(),
+            ),
+        ));
 
         // let triangle_transform_2 = Arc::new(Mutex::new(
         //     crate::component::TransformBuild::new()
@@ -404,17 +421,6 @@ impl Engine {
             ),
         ));
 
-        // Spawn camera
-        let camera = scene.spawn((
-            Arc::new(Mutex::new(
-                crate::component::TransformBuild::new()
-                    .with_position(nalgebra_glm::vec3(0.0, 4.0, -6.0))
-                    // .with_parent(triangle_transform_1.clone())
-                    .build(),
-            )),
-            camera,
-        ));
-
         let lines = Arc::new(Mutex::new(
             crate::component::TransformBuild::new()
                 // .with_buffer(device.as_ref())
@@ -436,11 +442,11 @@ impl Engine {
             config,
             scene,
             render_pipelines,
-            egui: (
-                egui_wgpu_backend::RenderPass::new(&device, surface_format, 1),
-                egui_winit::State::new(event_loop),
-                egui::Context::default(),
-            ),
+            egui: EGUI {
+                context: egui::Context::default(),
+                platform: egui_winit::State::new(event_loop),
+                renderer: egui_wgpu::Renderer::new(&device, surface_format, Some(wgpu::TextureFormat::Depth32Float), 1)
+            },
             device,
             queue,
             window,
@@ -503,8 +509,8 @@ impl Engine {
         drop(render_pass);
 
         // EGUI
-        let input = self.egui.1.take_egui_input(self.window.as_ref());
-        let output = self.egui.2.run(input, |ctx| {
+        let input = self.egui.platform.take_egui_input(self.window.as_ref());
+        let output = self.egui.context.run(input, |ctx| {
             egui::Area::new("debug_info")
                 .fixed_pos(egui::pos2(0.0, 0.0))
                 .show(ctx, |ui| {
@@ -517,10 +523,15 @@ impl Engine {
 
                     ui.label(
                         egui::RichText::new(format!(
-                            "position: {:.4?}\nrotation: {:.4?}",
-                            transform.get_position(),
-                            transform.get_rotation()
+                            "position: {:.4?}",
+                            transform.get_position()
                         ))
+                        .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
+                        .color(egui::Color32::WHITE)
+                        .size(20.0),
+                    );
+                    ui.label(
+                        egui::RichText::new(format!("rotation: {:.4?}", transform.get_rotation()))
                         .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
                         .color(egui::Color32::WHITE)
                         .size(20.0),
@@ -528,29 +539,42 @@ impl Engine {
                 });
         });
 
-        let paint_jobs = self.egui.2.tessellate(output.shapes);
+        let paint_jobs = self.egui.context.tessellate(output.shapes.clone());
 
-        let screen_descriptor = egui_wgpu_backend::ScreenDescriptor {
-            physical_width: self.config.width,
-            physical_height: self.config.height,
-            scale_factor: self.window.scale_factor() as f32,
+        let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
+            size_in_pixels: [self.config.width, self.config.height],
+            pixels_per_point: self.egui.platform.pixels_per_point()
         };
 
-        self.egui
-            .0
-            .add_textures(&self.device, &self.queue, &output.textures_delta)
-            .unwrap();
+        for (id, image_delta) in &output.textures_delta.set {
+            self.egui.renderer.update_texture(&self.device, &self.queue, *id, image_delta);
+        }
+        
+        self.egui.renderer.update_buffers(&self.device, &self.queue, &mut encoder, &paint_jobs, &screen_descriptor);
 
-        self.egui.0.remove_textures(output.textures_delta).unwrap();
-
-        self.egui
-            .0
-            .update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
-
-        self.egui
-            .0
-            .execute(&mut encoder, &view, &paint_jobs, &screen_descriptor, None)
-            .unwrap();
+        {
+            let mut render_pass =
+            encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+            self.egui.renderer.render(&mut render_pass, &paint_jobs, &screen_descriptor);
+        }
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output_frame.present();
@@ -559,31 +583,56 @@ impl Engine {
     }
 
     pub fn update(&mut self) {
-        self.scene
-            .query_mut::<(
-                &mut crate::component::TransformType,
-                &mut crate::component::Render,
-            )>()
-            .into_iter()
-            .enumerate()
-            .for_each(|(_i, (_, (transform, _)))| {
-                if let Ok(transform) = transform.lock() {
-                    // if i == 0 {
-                    // transform.add_rotation_y(0.5);
-                    // }
+        // self.scene
+        //     .query_mut::<(
+        //         &mut crate::component::TransformType,
+        //         &mut crate::component::Render,
+        //     )>()
+        //     .into_iter()
+        //     .enumerate()
+        //     .for_each(|(i, (_, (transform, _)))| {
+        //         if let Ok(mut transform) = transform.lock() {
+        //             // if i == 0 {
+        //         //         // transform.add_rotation_y(0.5);
+        //         //         if self.input.0 {
+        //         //             let position = transform.get_position();
+        //         //             let right = transform.right();
+        //         //             transform.set_position(&(position + right * 0.05));
+        //         //         }
+        //         //         if self.input.1 {
+        //         //             let position = transform.get_position();
+        //         //             let right = transform.right();
+        //         //             transform.set_position(&(position - right * 0.05));
+        //         //         }
+        //         //         if self.input.2 {
+        //         //             let position = transform.get_position();
+        //         //             let forward = transform.forward();
+        //         //             transform.set_position(&(position + forward * 0.05));
+        //         //         }
+        //         //         if self.input.3 {
+        //         //             let position = transform.get_position();
+        //         //             let forward = transform.forward();
+        //         //             transform.set_position(&(position - forward * 0.05));
+        //         //         }
 
-                    match transform.buffer.as_ref() {
-                        Some(buffer) => {
-                            self.queue.write_buffer(
-                                buffer,
-                                0,
-                                bytemuck::cast_slice(&[transform.to_raw()]),
-                            );
-                        }
-                        None => {}
-                    }
-                }
-            });
+        //         //         transform.add_rotation_x(-self.mouse_delta.1 * 0.5);
+        //         //         // transform.add_rotation_y(self.mouse_delta.0 * 0.5);
+        //         //         let up = transform.up();
+        //         //         transform.add_rotation_global_y(self.mouse_delta.0 * 0.5 * up.y.signum());
+        //             // }
+
+        //             match transform.buffer.as_ref() {
+        //                 Some(buffer) => {
+        //                     self.queue.write_buffer(
+        //                         buffer,
+        //                         0,
+        //                         bytemuck::cast_slice(&[transform.to_raw()]),
+        //                     );
+        //                 }
+        //                 None => {}
+        //             }
+        //         }
+        //     });
 
         // Provisional camera controller
         self.scene
