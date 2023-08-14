@@ -32,8 +32,9 @@ impl Engine {
         event_loop: &winit::event_loop::EventLoop<()>,
     ) -> Self {
         // Surface, device, queue and config
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let instance = wgpu::Instance::default();
         let surface = unsafe { instance.create_surface(window.as_ref()) };
+        let surface = surface.unwrap();
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -57,7 +58,8 @@ impl Engine {
 
         let device = Arc::new(device);
 
-        let surface_format = surface.get_supported_formats(&adapter)[0];
+        let caps = surface.get_capabilities(&adapter);
+        let surface_format = caps.formats[0];
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -65,7 +67,8 @@ impl Engine {
             width: window.as_ref().inner_size().width,
             height: window.as_ref().inner_size().height,
             present_mode: wgpu::PresentMode::AutoNoVsync,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![wgpu::TextureFormat::Bgra8Unorm],
         };
 
         surface.configure(&device, &config);
@@ -445,7 +448,12 @@ impl Engine {
             egui: EGUI {
                 context: egui::Context::default(),
                 platform: egui_winit::State::new(event_loop),
-                renderer: egui_wgpu::Renderer::new(&device, surface_format, Some(wgpu::TextureFormat::Depth32Float), 1)
+                renderer: egui_wgpu::Renderer::new(
+                    device.as_ref(),
+                    surface_format,
+                    Some(egui_wgpu::wgpu::TextureFormat::Depth32Float),
+                    1,
+                ),
             },
             device,
             queue,
@@ -522,19 +530,16 @@ impl Engine {
                         .unwrap();
 
                     ui.label(
-                        egui::RichText::new(format!(
-                            "position: {:.4?}",
-                            transform.get_position()
-                        ))
-                        .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
-                        .color(egui::Color32::WHITE)
-                        .size(20.0),
+                        egui::RichText::new(format!("position: {:.4?}", transform.get_position()))
+                            .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
+                            .color(egui::Color32::WHITE)
+                            .size(20.0),
                     );
                     ui.label(
                         egui::RichText::new(format!("rotation: {:.4?}", transform.get_rotation()))
-                        .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
-                        .color(egui::Color32::WHITE)
-                        .size(20.0),
+                            .background_color(egui::Color32::from_rgba_premultiplied(0, 0, 0, 160))
+                            .color(egui::Color32::WHITE)
+                            .size(20.0),
                     );
                 });
         });
@@ -543,18 +548,25 @@ impl Engine {
 
         let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
             size_in_pixels: [self.config.width, self.config.height],
-            pixels_per_point: self.egui.platform.pixels_per_point()
+            pixels_per_point: self.egui.platform.pixels_per_point(),
         };
 
         for (id, image_delta) in &output.textures_delta.set {
-            self.egui.renderer.update_texture(&self.device, &self.queue, *id, image_delta);
+            self.egui
+                .renderer
+                .update_texture(&self.device, &self.queue, *id, image_delta);
         }
-        
-        self.egui.renderer.update_buffers(&self.device, &self.queue, &mut encoder, &paint_jobs, &screen_descriptor);
+
+        self.egui.renderer.update_buffers(
+            &self.device,
+            &self.queue,
+            &mut encoder,
+            &paint_jobs,
+            &screen_descriptor,
+        );
 
         {
-            let mut render_pass =
-            encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
@@ -573,7 +585,9 @@ impl Engine {
                     stencil_ops: None,
                 }),
             });
-            self.egui.renderer.render(&mut render_pass, &paint_jobs, &screen_descriptor);
+            self.egui
+                .renderer
+                .render(&mut render_pass, &paint_jobs, &screen_descriptor);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
